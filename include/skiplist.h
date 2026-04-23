@@ -8,6 +8,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <fstream>
 
 template<typename K, typename V>
 class Node{
@@ -38,6 +39,7 @@ class skiplist{
     std::shared_ptr<Node<K,V>> header;
     int element_count;
     std::mutex _mtx;
+    std::string filename = "skiplist_data.txt";
     
     public:
     skiplist(int max_level);
@@ -48,6 +50,8 @@ class skiplist{
     void show();
     void delete_node(K key);
     void insert(K key,V val);
+    void dump_file();
+    void load_file();
 };
 
 //构造函数
@@ -141,7 +145,7 @@ void skiplist<K,V>::delete_node(K key)
         std::cout<<std::endl;
         for(int i = 0 ; i <= curr_level ; ++i)
         {
-            if(update[i]->forward[i]->key != key)
+            if(update[i]->forward[i].get() != current)
             break;
             update[i]->forward[i] = current -> forward[i];
         }
@@ -197,5 +201,29 @@ void skiplist<K,V>::insert(K key,V val)
         }
         ++element_count;
     }
+}
+
+//将跳表数据写入文件
+template<typename K,typename V>
+void skiplist<K,V>::dump_file()
+{
+    std::ofstream out_file(filename);
+    if(!out_file.is_open())
+    {
+        std::cout<<"[Error] 无法打开文件 :"<<filename<<std::endl;
+        return;
+    }
+
+    auto current = header->forward[0].get();
+
+    while(current != nullptr)
+    {
+        out_file<<current->key<<" : "<<current->val<<'\n';
+        current = current -> forward[0].get();
+    }
+
+    out_file.close();
+    std::cout<<"文件写入成功 : "<<std::endl;
+    return ;
 }
 #endif
