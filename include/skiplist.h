@@ -48,11 +48,11 @@ class skiplist{
     ~skiplist();
     
     int get_random_level();
-    void search(K key);
-    void show();
-    void delete_node(K key);
-    void insert(K key,V val);
-    void dump_file();
+    void search(const K& k) const;
+    void show() const ;
+    void delete_node(const K& k);
+    void insert(const K& k,const V& val);
+    void dump_file() const;
     void load_file();
 };
 
@@ -87,7 +87,7 @@ int skiplist<K,V>::get_random_level()
 
 //查询节点k
 template<typename K,typename V>
-void skiplist<K,V>::search(K key)
+void skiplist<K,V>::search(const K& k) const
 {
     auto current = header.get();
     for(int i = curr_level; i >= 0; --i)
@@ -112,7 +112,7 @@ void skiplist<K,V>::search(K key)
 
 //展示内部结构
 template<typename K,typename V>
-void skiplist<K,V>::show()
+void skiplist<K,V>::show() const
 {
     for(int i=0;i<=curr_level;++i)
     {
@@ -129,7 +129,7 @@ void skiplist<K,V>::show()
 
 //删除节点k
 template<typename K,typename V>
-void skiplist<K,V>::delete_node(K key)
+void skiplist<K,V>::delete_node(const K& k)
 {
     std::vector<Node<K,V>*> update(max_level+1,nullptr);
     auto current = header.get();
@@ -168,7 +168,7 @@ void skiplist<K,V>::delete_node(K key)
 
 //插入节点
 template<typename K,typename V>
-void skiplist<K,V>::insert(K key,V val)
+void skiplist<K,V>::insert(const K& k,const V& val)
 {
     std::vector<Node<K,V>*> update(max_level+1,nullptr);
     auto current = header.get();
@@ -209,7 +209,7 @@ void skiplist<K,V>::insert(K key,V val)
 
 //将跳表数据写入文件
 template<typename K,typename V>
-void skiplist<K,V>::dump_file()
+void skiplist<K,V>::dump_file() const
 {
     std::ofstream out_file(filename);
     if(!out_file.is_open())
