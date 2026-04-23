@@ -9,5 +9,8 @@ int main() {
     sl.insert(3,"three");
     sl.insert(4,"four");
     sl.show();
+    sl.delete_node(2);
+    sl.show();
+    sl.dump_file();
     return 0;
 }
