@@ -9,6 +9,8 @@
 #include <memory>
 #include <mutex>
 #include <fstream>
+#include <sstream>      // 用于字符串流转换
+#include <type_traits>  // 用于类型判断
 
 template<typename K, typename V>
 class Node{
@@ -61,6 +63,8 @@ skiplist<K,V>::skiplist(int max_level)
 {
     K k;V v;
     header=std::make_shared<Node<K,V>>(k,v,max_level);
+
+    load_file();
 }
 
 //析构函数
@@ -218,12 +222,65 @@ void skiplist<K,V>::dump_file()
 
     while(current != nullptr)
     {
-        out_file<<current->key<<" : "<<current->val<<'\n';
+        out_file<<current->key<<":"<<current->val<<'\n';
         current = current -> forward[0].get();
     }
 
     out_file.close();
-    std::cout<<"文件写入成功 : "<<std::endl;
+    std::cout<<"文件写入成功!"<<std::endl;
+    return ;
+}
+
+
+//读入文件历史数据
+template<typename K,typename V>
+void skiplist<K,V>::load_file()
+{
+    std::ifstream in_file(filename);
+    if(!in_file.is_open())
+    {
+        std::cout<<"无法打开文件 : "<<filename<<'\n';
+        return;
+    }
+
+    std::string line;
+    while(getline(in_file,line))
+    {
+        if(line.empty())
+        {
+            std::cout<<"文件内容为空"<<std::endl;
+            return;
+        }
+
+        int pos = line.find(":");
+        std::string key_str = line.substr(0,pos);
+        std::string val_str = line.substr(pos+1);
+        K key;
+        V val;
+
+        if constexpr (std::is_same_v<K,std::string>)
+        {
+            key = key_str;
+        }
+        else{
+            std::istringstream key_stream(key_str);
+            key_stream >> key;
+        }
+
+        if constexpr (std::is_same_v<V,std::string>)
+        {
+            val = val_str;
+        
+        }
+        else{
+            std::istringstream val_stream(val_str);
+            val_stream >> val;
+        }
+
+        insert(key,val);
+    }
+    in_file.close();
+    std::cout<<"文件加载成功!"<<filename<<std::endl;
     return ;
 }
 #endif
