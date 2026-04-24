@@ -98,6 +98,7 @@ int skiplist<K,V>::get_random_level()
 template<typename K,typename V>
 void skiplist<K,V>::search(const K& key) const
 {
+    std::lock_guard<std::mutex> lock(_mtx);
     auto current = header;
     for(int i = curr_level; i >= 0; --i)
     {
@@ -140,6 +141,7 @@ void skiplist<K,V>::show() const
 template<typename K,typename V>
 void skiplist<K,V>::delete_node(const K& key)
 {
+    std::lock_guard<std::mutex> lock(_mtx);
     Node<K,V>* update [max_level+1];
     memset(update,0,sizeof(Node<K,V>*)*(max_level+1));
     auto current = header;
@@ -180,6 +182,7 @@ void skiplist<K,V>::delete_node(const K& key)
 template<typename K,typename V>
 void skiplist<K,V>::insert(const K& key,const V& val)
 {
+    std::lock_guard<std::mutex> lock(_mtx);
     Node<K,V>* update [max_level+1];
     auto current = header;
     memset(update,0,sizeof(Node<K,V>*)*(max_level+1));
