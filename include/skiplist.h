@@ -7,6 +7,7 @@
 #include <cstring>
 #include <vector>
 #include <memory>
+#include <shared_mutex>
 #include <mutex>
 #include <fstream>
 #include <sstream>      // 用于字符串流转换
@@ -44,7 +45,7 @@ class skiplist{
     Node<K,V>* header;
 
     int element_count;
-    mutable std::mutex _mtx;
+    mutable std::shared_mutex _mtx;
     std::string filename = "skiplist_data.txt";
     
     public:
@@ -98,7 +99,7 @@ int skiplist<K,V>::get_random_level()
 template<typename K,typename V>
 void skiplist<K,V>::search(const K& key) const
 {
-    std::lock_guard<std::mutex> lock(_mtx);
+    std::shared_lock<std::shared_mutex> lock(_mtx);
     auto current = header;
     for(int i = curr_level; i >= 0; --i)
     {
@@ -141,7 +142,7 @@ void skiplist<K,V>::show() const
 template<typename K,typename V>
 void skiplist<K,V>::delete_node(const K& key)
 {
-    std::lock_guard<std::mutex> lock(_mtx);
+    std::unique_lock<std::shared_mutex> lock(_mtx);
     Node<K,V>* update [max_level+1];
     memset(update,0,sizeof(Node<K,V>*)*(max_level+1));
     auto current = header;
@@ -182,7 +183,7 @@ void skiplist<K,V>::delete_node(const K& key)
 template<typename K,typename V>
 void skiplist<K,V>::insert(const K& key,const V& val)
 {
-    std::lock_guard<std::mutex> lock(_mtx);
+    std::shared_lock<std::shared_mutex> lock(_mtx);
     Node<K,V>* update [max_level+1];
     auto current = header;
     memset(update,0,sizeof(Node<K,V>*)*(max_level+1));
