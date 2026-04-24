@@ -19,17 +19,18 @@ class Node{
     V val;
     int node_level;
 
-    std::vector<std::shared_ptr<Node<K,V>>> forward;
+   //std::vector<std::shared_ptr<Node<K,V>>> forward;
+   <Node<K,V>>** forward;
 
     Node(K k,V v,int level)
     :key(k),val(v),node_level(level)
     {
-        this->forward.resize(level+1,nullptr);
+        forward = new Node<K,V>*[level+1]();
     }
 
     ~Node()
     {
-        ;
+        delete[] forward;
     }
 };
 
@@ -38,7 +39,10 @@ class skiplist{
     private:
     int max_level;
     int curr_level;
-    std::shared_ptr<Node<K,V>> header;
+
+    //std::shared_ptr<Node<K,V>> header;
+    Node<K,V>* header;
+
     int element_count;
     std::mutex _mtx;
     std::string filename = "skiplist_data.txt";
@@ -62,8 +66,7 @@ skiplist<K,V>::skiplist(int max_level)
 :max_level(max_level),curr_level(0),element_count(0)
 {
     K k;V v;
-    header=std::make_shared<Node<K,V>>(k,v,max_level);
-
+    header = new Node<K,V>(k,v,max_level)
     load_file();
 }
 
@@ -71,7 +74,13 @@ skiplist<K,V>::skiplist(int max_level)
 template<typename K,typename V>
 skiplist<K,V>::~skiplist()
 {
-    ;
+    Node<K,V>* current = header;
+    while(current != nullptr)
+    {
+        header = header->forward[0];
+        delete current;
+        current = header;
+    }
 }
 
 //随机生成一个层数
@@ -89,15 +98,15 @@ int skiplist<K,V>::get_random_level()
 template<typename K,typename V>
 void skiplist<K,V>::search(const K& key) const
 {
-    auto current = header.get();
+    auto current = header;
     for(int i = curr_level; i >= 0; --i)
     {
        while(current->forward[i] !=nullptr && current->forward[i]->key < key)
        {
-            current=current->forward[i].get();
+            current=current->forward[i];
        }
     }
-    current=current->forward[0].get();
+    current=current->forward[0];
     if(current != nullptr && current->key == key)
     {
         std::cout<<"I got it!!!";
@@ -116,12 +125,12 @@ void skiplist<K,V>::show() const
 {
     for(int i=0;i<=curr_level;++i)
     {
-        auto current = header->forward[i].get();
+        auto current = header->forward[i];
         std::cout<<"Level "<<i<<": ";
         while(current != nullptr)
         {
             std::cout<<"("<<current->key<<","<<current->val<<")"<<std::endl;
-            current = current->forward[i].get();
+            current = current->forward[i];
         }
         std::cout<<std::endl;
     }
@@ -131,17 +140,18 @@ void skiplist<K,V>::show() const
 template<typename K,typename V>
 void skiplist<K,V>::delete_node(const K& key)
 {
-    std::vector<Node<K,V>*> update(max_level+1,nullptr);
-    auto current = header.get();
+    Node<K,V>* update [max_level+1];
+    memset(update,0,sizeof(Node<K,V>*)*(max_level+1));
+    auto current = header;
     for( int i = curr_level; i >= 0 ; --i)
     {
         while(current -> forward[i] != nullptr && current-> forward[i] -> key < key)
         {
-            current = current ->forward[i].get();
+            current = current ->forward[i];
         }
         update[i]=current;
     }
-    current = current->forward[0].get();
+    current = current->forward[0];
     if(current != nullptr && current->key == key)
     {
         std::cout<<"before delete: "<<std::endl;
@@ -149,11 +159,11 @@ void skiplist<K,V>::delete_node(const K& key)
         std::cout<<std::endl;
         for(int i = 0 ; i <= curr_level ; ++i)
         {
-            if(update[i]->forward[i].get() != current)
+            if(update[i]->forward[i] != current)
             break;
             update[i]->forward[i] = current -> forward[i];
         }
-
+        delete current;
         while(curr_level > 0 && header->forward[curr_level] == nullptr)
         {
             --curr_level;
@@ -170,17 +180,18 @@ void skiplist<K,V>::delete_node(const K& key)
 template<typename K,typename V>
 void skiplist<K,V>::insert(const K& key,const V& val)
 {
-    std::vector<Node<K,V>*> update(max_level+1,nullptr);
-    auto current = header.get();
+    Node<K,V>* update [max_level+1];
+    auto current = header;
+    memset(update,0,sizeof(Node<K,V>*)*(max_level+1));
     for( int i = curr_level; i >= 0 ; --i)
     {
         while(current -> forward[i] != nullptr && current-> forward[i] -> key < key)
         {
-            current = current ->forward[i].get();
+            current = current ->forward[i];
         }
         update[i]=current;
     }
-    current = current->forward[0].get();
+    current = current->forward[0];
 
     if(current != nullptr && current->key == key)
     {
@@ -193,11 +204,11 @@ void skiplist<K,V>::insert(const K& key,const V& val)
         {
             for(int i = curr_level + 1; i <= new_level; ++i)
             {
-                update[i] = header.get();
+                update[i] = header;
             }
             curr_level = new_level;
         }
-        auto new_node = std::make_shared<Node<K,V>>(key,val,new_level);
+        auto new_node = new Node<K,V>(key,val,new_level);
         for(int i = 0 ; i <= new_level ; ++i)
         {
             new_node->forward[i] = update[i]->forward[i];
@@ -218,12 +229,12 @@ void skiplist<K,V>::dump_file() const
         return;
     }
 
-    auto current = header->forward[0].get();
+    auto current = header->forward[0];
 
     while(current != nullptr)
     {
         out_file<<current->key<<":"<<current->val<<'\n';
-        current = current -> forward[0].get();
+        current = current -> forward[0];
     }
 
     out_file.close();
