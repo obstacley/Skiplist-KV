@@ -23,6 +23,7 @@ int main() {
     auto end_time = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration<double>(end_time - start_time);
     std::cout<<"----------压入内存完成----------"<<std::endl;
+    std::cout<<"此次测试的数据大小为:"<<test_count<<"条"<<std::endl;;
     std::cout<<"耗时"<<duration.count()<<"秒"<<std::endl;
     std::cout << "插入 QPS: " << (test_count / duration.count()) << " 次/秒" << std::endl;
     return 0;

@@ -20,7 +20,7 @@ class Node{
     int node_level;
 
    //std::vector<std::shared_ptr<Node<K,V>>> forward;
-   <Node<K,V>>** forward;
+   Node<K,V>** forward;
 
     Node(K k,V v,int level)
     :key(k),val(v),node_level(level)
@@ -66,7 +66,7 @@ skiplist<K,V>::skiplist(int max_level)
 :max_level(max_level),curr_level(0),element_count(0)
 {
     K k;V v;
-    header = new Node<K,V>(k,v,max_level)
+    header = new Node<K,V>(k,v,max_level);
     load_file();
 }
 
