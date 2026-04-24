@@ -44,7 +44,7 @@ class skiplist{
     Node<K,V>* header;
 
     int element_count;
-    std::mutex _mtx;
+    mutable std::mutex _mtx;
     std::string filename = "skiplist_data.txt";
     
     public:
@@ -108,16 +108,16 @@ void skiplist<K,V>::search(const K& key) const
        }
     }
     current=current->forward[0];
-    if(current != nullptr && current->key == key)
-    {
-        std::cout<<"I got it!!!";
-        std::cout<<"key: "<<current->key<<std::endl;
-        std::cout<<"val: "<<current->val<<std::endl;
-    }
-    else
-    {
-        std::cout<<"I don't have it!!!";
-    }
+    // if(current != nullptr && current->key == key)
+    // {
+    //     std::cout<<"I got it!!!";
+    //     std::cout<<"key: "<<current->key<<std::endl;
+    //     std::cout<<"val: "<<current->val<<std::endl;
+    // }
+    // else
+    // {
+    //     std::cout<<"I don't have it!!!";
+    // }
 }
 
 //展示内部结构
