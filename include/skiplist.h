@@ -48,10 +48,10 @@ class skiplist{
     ~skiplist();
     
     int get_random_level();
-    void search(const K& k) const;
+    void search(const K& key) const;
     void show() const ;
-    void delete_node(const K& k);
-    void insert(const K& k,const V& val);
+    void delete_node(const K& key);
+    void insert(const K& key,const V& val);
     void dump_file() const;
     void load_file();
 };
@@ -87,7 +87,7 @@ int skiplist<K,V>::get_random_level()
 
 //查询节点k
 template<typename K,typename V>
-void skiplist<K,V>::search(const K& k) const
+void skiplist<K,V>::search(const K& key) const
 {
     auto current = header.get();
     for(int i = curr_level; i >= 0; --i)
@@ -129,7 +129,7 @@ void skiplist<K,V>::show() const
 
 //删除节点k
 template<typename K,typename V>
-void skiplist<K,V>::delete_node(const K& k)
+void skiplist<K,V>::delete_node(const K& key)
 {
     std::vector<Node<K,V>*> update(max_level+1,nullptr);
     auto current = header.get();
@@ -168,7 +168,7 @@ void skiplist<K,V>::delete_node(const K& k)
 
 //插入节点
 template<typename K,typename V>
-void skiplist<K,V>::insert(const K& k,const V& val)
+void skiplist<K,V>::insert(const K& key,const V& val)
 {
     std::vector<Node<K,V>*> update(max_level+1,nullptr);
     auto current = header.get();
