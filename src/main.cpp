@@ -21,8 +21,9 @@ int main() {
         test_list.insert(random_key,"test_value");
     }
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    auto duration = std::chrono::duration<double>(end_time - start_time);
     std::cout<<"----------压入内存完成----------"<<std::endl;
-    std::cout<<"----------耗时----------"<<duration.count()<<" ms"<<std::endl;
+    std::cout<<"耗时"<<duration.count()<<"秒"<<std::endl;
+    std::cout << "插入 QPS: " << (test_count / duration.count()) << " 次/秒" << std::endl;
     return 0;
 }
