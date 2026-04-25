@@ -59,6 +59,9 @@ class skiplist{
     void insert(const K& key,const V& val);
     void dump_file() const;
     void load_file();
+    int get_size() const{
+        return element_count;
+    }
 };
 
 //构造函数
