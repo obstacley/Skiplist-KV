@@ -12,6 +12,8 @@
 #include <fstream>
 #include <sstream>      // 用于字符串流转换
 #include <type_traits>  // 用于类型判断
+#include <fcntl.h>        // 用于文件锁
+#include <unistd.h>       // 用于文件锁
 
 template<typename K, typename V>
 class Node{
@@ -51,7 +53,10 @@ class skiplist{
     public:
     skiplist(int max_level);
     ~skiplist();
-    
+
+    int get_size() const{
+        return element_count;
+    }
     int get_random_level();
     void search(const K& key) const;
     void show() const ;
@@ -59,9 +64,6 @@ class skiplist{
     void insert(const K& key,const V& val);
     void dump_file() const;
     void load_file();
-    int get_size() const{
-        return element_count;
-    }
 };
 
 //构造函数
@@ -186,7 +188,7 @@ void skiplist<K,V>::delete_node(const K& key)
 template<typename K,typename V>
 void skiplist<K,V>::insert(const K& key,const V& val)
 {
-    std::shared_lock<std::shared_mutex> lock(_mtx);
+    std::unique_lock<std::shared_mutex> lock(_mtx);
     Node<K,V>* update [max_level+1];
     auto current = header;
     memset(update,0,sizeof(Node<K,V>*)*(max_level+1));
@@ -229,6 +231,7 @@ void skiplist<K,V>::insert(const K& key,const V& val)
 template<typename K,typename V>
 void skiplist<K,V>::dump_file() const
 {
+    //std::shared_lock<std::shared_mutex> lock(_mtx);
     std::ofstream out_file(filename);
     if(!out_file.is_open())
     {
