@@ -231,25 +231,47 @@ void skiplist<K,V>::insert(const K& key,const V& val)
 template<typename K,typename V>
 void skiplist<K,V>::dump_file() const
 {
-    //std::shared_lock<std::shared_mutex> lock(_mtx);
-    std::ofstream out_file(filename);
-    if(!out_file.is_open())
+    std::shared_lock<std::shared_mutex> lock(_mtx);
+
+    int fd = open("list_data.rbd", O_CREAT | O_TRUNC | O_WRONLY, 0644);
+    if(fd == -1)
     {
-        std::cout<<"[Error] 无法打开文件 :"<<filename<<std::endl;
+        std::cout<<"[Error] 无法打开文件 :"<<"list_data.rbd"<<std::endl;
         return;
     }
 
     auto current = header->forward[0];
-
+    std::string per_data;
     while(current != nullptr)
     {
-        out_file<<current->key<<":"<<current->val<<'\n';
+        std::stringstream ss;
+        ss << current->key<<":"<<current->val<<'\n';
+        per_data = ss.str();
+        write(fd,per_data.c_str(),per_data.size());
         current = current -> forward[0];
     }
 
-    out_file.close();
-    std::cout<<"文件写入成功!"<<std::endl;
+    close(fd);
+    std::cout<<"文件写入成功!"<<"共保存:"<<element_count<<"个元素"<<std::endl;
     return ;
+    // std::ofstream out_file(filename);
+    // if(!out_file.is_open())
+    // {
+    //     std::cout<<"[Error] 无法打开文件 :"<<filename<<std::endl;
+    //     return;
+    // }
+
+    // auto current = header->forward[0];
+
+    // while(current != nullptr)
+    // {
+    //     out_file<<current->key<<":"<<current->val<<'\n';
+    //     current = current -> forward[0];
+    // }
+
+    // out_file.close();
+    // std::cout<<"文件写入成功!"<<std::endl;
+    // return ;
 }
 
 
