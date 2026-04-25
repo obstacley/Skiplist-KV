@@ -61,4 +61,7 @@ int main() {
     std::cout<<"表内总数据量:"<<list_test.get_size()<<std::endl;
     std::cout<<"读写并发总耗时:"<<duration.count()<<"秒"<<std::endl;
     std::cout<<"多线程QPS:"<<(thread_count*per_thread)/duration.count()<<"次/秒"<<std::endl;
+
+    list_test.dump_file();
+    return 0;
 }
