@@ -48,7 +48,7 @@ class skiplist{
 
     int element_count;
     mutable std::shared_mutex _mtx;
-    std::string filename = "skiplist_data.txt";
+    std::string filename = "list_data.rbd";
     
     public:
     skiplist(int max_level);
@@ -93,11 +93,14 @@ skiplist<K,V>::~skiplist()
 template<typename K,typename V>
 int skiplist<K,V>::get_random_level()
 {
-    int k = 1;
-    while( rand() % 2 == 0 && k < max_level )
-    ++k;
-    return k;
-
+    static thread_local std::mt19937 rng(std::random_device{}());
+    std::uniform_real_distribution<double>dist(0.0,1.0);
+    int level = 1;
+    while(dist(rng) < 0.25 && level < max_level)
+    {
+        ++level;
+    }
+    return level;
 }
 
 //查询节点k
@@ -237,7 +240,7 @@ void skiplist<K,V>::dump_file() const
     if(fd == -1)
     {
         std::cout<<"[Error] 无法打开文件 :"<<"list_data.rbd"<<std::endl;
-        return;
+        return ;
     }
 
     auto current = header->forward[0];

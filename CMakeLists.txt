@@ -16,3 +16,5 @@ add_executable(skiplist_node src/main.cpp)
 # # 6.编译追踪测试
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
 # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+
+# add_compile_options(-O3)
