@@ -14,6 +14,7 @@
 #include <type_traits>  // 用于类型判断
 #include <fcntl.h>        // 用于文件锁
 #include <unistd.h>       // 用于文件锁
+ #include <utility>       // 用于std::forward
 
 template<typename K, typename V>
 class Node{
@@ -74,8 +75,8 @@ class skiplist{
     void search(const K& key) const;
     void show() const ;
     void delete_node(const K& key);
-    void insert(const K& key,const V& val);
-    void insert(K&& key,V&& val);
+    template<typename RK,typename RV>
+    void insert(RK&& key,RV&& val);
     void dump_file() const;
     void load_file();
 };
@@ -203,7 +204,8 @@ void skiplist<K,V>::delete_node(const K& key)
 
 //插入节点
 template<typename K,typename V>
-void skiplist<K,V>::insert(const K& key,const V& val)
+template<typename RK,typename RV>
+void skiplist<K,V>::insert(RK&& key,RV&& val)
 {
     WriteLock lock(_mtx);
     NodePtr<K,V> update [max_level+1];
@@ -221,7 +223,7 @@ void skiplist<K,V>::insert(const K& key,const V& val)
 
     if(current != nullptr && current->key == key)
     {
-        current->val = val;
+        current->val = std::forward<RV>(val);// ★ 左值拷，右值移
     }
     else
     {
@@ -234,49 +236,7 @@ void skiplist<K,V>::insert(const K& key,const V& val)
             }
             curr_level = new_level;
         }
-        auto new_node = new Node<K,V>(key,val,new_level);
-        for(int i = 0 ; i <= new_level ; ++i)
-        {
-            new_node->forward[i] = update[i]->forward[i];
-            update[i]->forward[i] = new_node;
-        }
-        ++element_count;
-    }
-}
-
-template<typename K,typename V>
-void skiplist<K,V>::insert(K&& key,V&& val)
-{
-    WriteLock lock(_mtx);
-    NodePtr<K,V> update [max_level+1];
-    auto current = header;
-    memset(update,0,sizeof(NodePtr<K,V>)*(max_level+1));
-    for( int i = curr_level; i >= 0 ; --i)
-    {
-        while(current -> forward[i] != nullptr && current-> forward[i] -> key < key)
-        {
-            current = current ->forward[i];
-        }
-        update[i]=current;
-    }
-    current = current->forward[0];
-
-    if(current != nullptr && current->key == key)
-    {
-        current->val = std::move(val);
-    }
-    else
-    {
-        int new_level = get_random_level();
-        if(new_level > curr_level)
-        {
-            for(int i = curr_level + 1; i <= new_level; ++i)
-            {
-                update[i] = header;
-            }
-            curr_level = new_level;
-        }
-        auto new_node = new Node<K,V>(std::move(key),std::move(val),new_level);
+        auto new_node = new Node<K,V>(std::forward<RK>(key),std::forward<RV>(val),new_level);
         for(int i = 0 ; i <= new_level ; ++i)
         {
             new_node->forward[i] = update[i]->forward[i];
