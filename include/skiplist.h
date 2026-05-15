@@ -25,8 +25,14 @@ class Node{
    //std::vector<std::shared_ptr<Node<K,V>>> forward;
    Node<K,V>** forward;
 
-    Node(K k,V v,int level)
+    Node(const K& k,const V& v,int level)
     :key(k),val(v),node_level(level)
+    {
+        forward = new Node<K,V>*[level+1]();
+    }
+
+    Node(K&& k,V&& v,int level)
+    :key(std::move(k)),val(std::move(v)),node_level(level)
     {
         forward = new Node<K,V>*[level+1]();
     }
@@ -36,6 +42,13 @@ class Node{
         delete[] forward;
     }
 };
+
+template<typename K,typename V>
+using NodePtr = Node<K,V>*;
+
+using ReadLock = std::shared_lock<std::shared_mutex>;
+using WriteLock = std::unique_lock<std::shared_mutex>;
+
 
 template<typename K,typename V>
 class skiplist{
@@ -62,6 +75,7 @@ class skiplist{
     void show() const ;
     void delete_node(const K& key);
     void insert(const K& key,const V& val);
+    void insert(K&& key,V&& val);
     void dump_file() const;
     void load_file();
 };
@@ -71,7 +85,7 @@ template<typename K,typename V>
 skiplist<K,V>::skiplist(int max_level)
 :max_level(max_level),curr_level(0),element_count(0)
 {
-    K k;V v;
+    K k{};V v{};
     header = new Node<K,V>(k,v,max_level);
     load_file();
 }
@@ -80,7 +94,7 @@ skiplist<K,V>::skiplist(int max_level)
 template<typename K,typename V>
 skiplist<K,V>::~skiplist()
 {
-    Node<K,V>* current = header;
+    NodePtr<K,V> current = header;
     while(current != nullptr)
     {
         header = header->forward[0];
@@ -107,7 +121,7 @@ int skiplist<K,V>::get_random_level()
 template<typename K,typename V>
 void skiplist<K,V>::search(const K& key) const
 {
-    std::shared_lock<std::shared_mutex> lock(_mtx);
+    ReadLock lock(_mtx);
     auto current = header;
     for(int i = curr_level; i >= 0; --i)
     {
@@ -150,9 +164,9 @@ void skiplist<K,V>::show() const
 template<typename K,typename V>
 void skiplist<K,V>::delete_node(const K& key)
 {
-    std::unique_lock<std::shared_mutex> lock(_mtx);
-    Node<K,V>* update [max_level+1];
-    memset(update,0,sizeof(Node<K,V>*)*(max_level+1));
+    WriteLock lock(_mtx);
+    NodePtr<K,V> update [max_level+1];
+    memset(update,0,sizeof(NodePtr<K,V>)*(max_level+1));
     auto current = header;
     for( int i = curr_level; i >= 0 ; --i)
     {
@@ -191,10 +205,10 @@ void skiplist<K,V>::delete_node(const K& key)
 template<typename K,typename V>
 void skiplist<K,V>::insert(const K& key,const V& val)
 {
-    std::unique_lock<std::shared_mutex> lock(_mtx);
-    Node<K,V>* update [max_level+1];
+    WriteLock lock(_mtx);
+    NodePtr<K,V> update [max_level+1];
     auto current = header;
-    memset(update,0,sizeof(Node<K,V>*)*(max_level+1));
+    memset(update,0,sizeof(NodePtr<K,V>)*(max_level+1));
     for( int i = curr_level; i >= 0 ; --i)
     {
         while(current -> forward[i] != nullptr && current-> forward[i] -> key < key)
@@ -230,11 +244,53 @@ void skiplist<K,V>::insert(const K& key,const V& val)
     }
 }
 
+template<typename K,typename V>
+void skiplist<K,V>::insert(K&& key,V&& val)
+{
+    WriteLock lock(_mtx);
+    NodePtr<K,V> update [max_level+1];
+    auto current = header;
+    memset(update,0,sizeof(NodePtr<K,V>)*(max_level+1));
+    for( int i = curr_level; i >= 0 ; --i)
+    {
+        while(current -> forward[i] != nullptr && current-> forward[i] -> key < key)
+        {
+            current = current ->forward[i];
+        }
+        update[i]=current;
+    }
+    current = current->forward[0];
+
+    if(current != nullptr && current->key == key)
+    {
+        current->val = std::move(val);
+    }
+    else
+    {
+        int new_level = get_random_level();
+        if(new_level > curr_level)
+        {
+            for(int i = curr_level + 1; i <= new_level; ++i)
+            {
+                update[i] = header;
+            }
+            curr_level = new_level;
+        }
+        auto new_node = new Node<K,V>(std::move(key),std::move(val),new_level);
+        for(int i = 0 ; i <= new_level ; ++i)
+        {
+            new_node->forward[i] = update[i]->forward[i];
+            update[i]->forward[i] = new_node;
+        }
+        ++element_count;
+    }
+}
+
 //将跳表数据写入文件
 template<typename K,typename V>
 void skiplist<K,V>::dump_file() const
 {
-    std::shared_lock<std::shared_mutex> lock(_mtx);
+    ReadLock lock(_mtx);
 
     int fd = open("list_data.rbd", O_CREAT | O_TRUNC | O_WRONLY, 0644);
     if(fd == -1)
@@ -323,7 +379,7 @@ void skiplist<K,V>::load_file()
             val_stream >> val;
         }
 
-        insert(key,val);
+        insert(std::move(key),std::move(val));
     }
     in_file.close();
     std::cout<<"文件加载成功!"<<filename<<std::endl;
