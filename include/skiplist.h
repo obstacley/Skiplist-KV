@@ -14,7 +14,8 @@
 #include <type_traits>  // 用于类型判断
 #include <fcntl.h>        // 用于文件锁
 #include <unistd.h>       // 用于文件锁
- #include <utility>       // 用于std::forward
+#include <utility>         // 用于std::forward
+#include <optional>       
 
 constexpr int max_level = 20 ;
 
@@ -73,11 +74,11 @@ class skiplist{
         return element_count;
     }
     int get_random_level();
-    void search(const K& key) const;
+    std::optional<V> search(const K& key) const;
     void show() const ;
-    void delete_node(const K& key);
+    bool delete_node(const K& key);
     template<typename RK,typename RV>
-    void insert(RK&& key,RV&& val);
+    bool insert(RK&& key,RV&& val);
     void dump_file() const;
     void load_file();
 };
@@ -121,7 +122,7 @@ int skiplist<K,V>::get_random_level()
 
 //查询节点k
 template<typename K,typename V>
-void skiplist<K,V>::search(const K& key) const
+std::optional<V> skiplist<K,V>::search(const K& key) const
 {
     ReadLock lock(_mtx);
     auto current = header;
@@ -133,16 +134,13 @@ void skiplist<K,V>::search(const K& key) const
        }
     }
     current=current->forward[0];
-    // if(current != nullptr && current->key == key)
-    // {
-    //     std::cout<<"I got it!!!";
-    //     std::cout<<"key: "<<current->key<<std::endl;
-    //     std::cout<<"val: "<<current->val<<std::endl;
-    // }
-    // else
-    // {
-    //     std::cout<<"I don't have it!!!";
-    // }
+    if(current != nullptr && current->key ==key)
+    {
+        return current->val;
+    }
+    else {
+        return std::nullopt;
+    }
 }
 
 //展示内部结构
@@ -165,7 +163,7 @@ void skiplist<K,V>::show() const
 
 //删除节点k
 template<typename K,typename V>
-void skiplist<K,V>::delete_node(const K& key)
+bool skiplist<K,V>::delete_node(const K& key)
 {
     WriteLock lock(_mtx);
     NodePtr<K,V> update [max_level+1];
@@ -182,9 +180,6 @@ void skiplist<K,V>::delete_node(const K& key)
     current = current->forward[0];
     if(current != nullptr && current->key == key)
     {
-        std::cout<<"before delete: "<<std::endl;
-//        show();
-        std::cout<<std::endl;
         for(int i = 0 ; i <= curr_level ; ++i)
         {
             if(update[i]->forward[i] != current)
@@ -197,17 +192,16 @@ void skiplist<K,V>::delete_node(const K& key)
             --curr_level;
         }
         --element_count;
-        std::cout<<"after delete: "<<std::endl;
-//        show();
-        std::cout<<std::endl;
+        return true;
     }
+    return false;
 }
 
 
 //插入节点
 template<typename K,typename V>
 template<typename RK,typename RV>
-void skiplist<K,V>::insert(RK&& key,RV&& val)
+bool skiplist<K,V>::insert(RK&& key,RV&& val)
 {
     WriteLock lock(_mtx);
     NodePtr<K,V> update [max_level+1];
@@ -226,6 +220,7 @@ void skiplist<K,V>::insert(RK&& key,RV&& val)
     if(current != nullptr && current->key == key)
     {
         current->val = std::forward<RV>(val);// ★ 左值拷，右值移
+        return false; // 已存在，为便于区分，更新值后返回false
     }
     else
     {
@@ -245,6 +240,7 @@ void skiplist<K,V>::insert(RK&& key,RV&& val)
             update[i]->forward[i] = new_node;
         }
         ++element_count;
+        return true;
     }
 }
 
