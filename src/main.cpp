@@ -6,7 +6,7 @@
 #include "skiplist.h" 
 
 int main() {
-    skiplist<int ,std::string> list_test(18);
+    skiplist<int,std::string> list_test;
 
     std::random_device rd;
     std::mt19937 rng(rd());

@@ -16,6 +16,8 @@
 #include <unistd.h>       // 用于文件锁
  #include <utility>       // 用于std::forward
 
+constexpr int max_level = 20 ;
+
 template<typename K, typename V>
 class Node{
     public:
@@ -54,7 +56,6 @@ using WriteLock = std::unique_lock<std::shared_mutex>;
 template<typename K,typename V>
 class skiplist{
     private:
-    int max_level;
     int curr_level;
 
     //std::shared_ptr<Node<K,V>> header;
@@ -65,7 +66,7 @@ class skiplist{
     std::string filename = "list_data.rbd";
     
     public:
-    skiplist(int max_level);
+    skiplist();
     ~skiplist();
 
     int get_size() const{
@@ -83,8 +84,8 @@ class skiplist{
 
 //构造函数
 template<typename K,typename V>
-skiplist<K,V>::skiplist(int max_level)
-:max_level(max_level),curr_level(0),element_count(0)
+skiplist<K,V>::skiplist()
+:curr_level(0),element_count(0)
 {
     K k{};V v{};
     header = new Node<K,V>(k,v,max_level);
@@ -148,6 +149,7 @@ void skiplist<K,V>::search(const K& key) const
 template<typename K,typename V>
 void skiplist<K,V>::show() const
 {
+    ReadLock lock(_mtx);
     for(int i=0;i<=curr_level;++i)
     {
         auto current = header->forward[i];
@@ -181,7 +183,7 @@ void skiplist<K,V>::delete_node(const K& key)
     if(current != nullptr && current->key == key)
     {
         std::cout<<"before delete: "<<std::endl;
-        show();
+//        show();
         std::cout<<std::endl;
         for(int i = 0 ; i <= curr_level ; ++i)
         {
@@ -196,7 +198,7 @@ void skiplist<K,V>::delete_node(const K& key)
         }
         --element_count;
         std::cout<<"after delete: "<<std::endl;
-        show();
+//        show();
         std::cout<<std::endl;
     }
 }
