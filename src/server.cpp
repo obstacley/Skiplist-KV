@@ -4,9 +4,15 @@
 #include <unistd.h>
 #include <cstring>
 #include <thread>
+#include <string>
+#include <sstream>
+#include "../include/skiplist.h"
+#include <functional> //提供std::ref
 
 constexpr int PORT = 9090;
 constexpr int BUFFER_SIZE = 1024;
+
+skiplist<std::string, std::string> kv;
 
 int main()
 {
@@ -81,9 +87,43 @@ int main()
             {
                 std::string line = buffer.substr(0,pos);
                 buffer.erase(0,pos+1);
-                std::cout<<"收到客户端消息: "<<line<<'\n';
-
-                write(clientfd, "OK\n", 3);
+                // std::cout<<"收到客户端消息: "<<line<<'\n';
+                if(!line.empty() && line.back() == '\r')
+                    line.pop_back();
+                std::istringstream iss(line);
+                std::string cmd,key,val;
+                iss>>cmd>>key>>val;
+                std::string reponse;
+                if(cmd == "SET")
+                {
+                    bool result =kv.insert(key,val);
+                    if(result)
+                    reponse = "OK(INSERT)\n";
+                    else reponse = "OK(UPDATE)\n";
+                }
+                else if(cmd == "GET")
+                {
+                    auto result = kv.search(key);
+                    if(result.has_value())
+                        reponse = result.value() + "\n";
+                    else reponse = "NOT_FOUND\n";
+                }
+                else if(cmd == "DEL") 
+                {
+                    bool result = kv.delete_node(key);
+                    if(result)
+                        reponse = "OK(DELETE)\n";
+                    else reponse = "NOT_FOUND\n";
+                }
+                else if(cmd == "COUNT")
+                {
+                    response = std::to_string(kv.get_size()) + "\n";
+                }
+                else {
+                    write(clientfd, "ERROR\n", 6);
+                    continue;
+                }
+                write(clientfd, reponse.c_str(), reponse.size());
             }
         }
         close(clientfd);
