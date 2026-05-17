@@ -16,6 +16,7 @@
 #include <unistd.h>       // 用于文件锁
 #include <utility>         // 用于std::forward
 #include <optional>       
+#include <random>
 
 constexpr int max_level = 20 ;
 
