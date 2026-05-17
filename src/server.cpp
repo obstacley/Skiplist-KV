@@ -60,21 +60,31 @@ int main()
         }
 
         std::cout<<"客户端连接成功！\n";
-        char buffer[BUFFER_SIZE];
-        ssize_t bytes = read(clientfd,buffer,BUFFER_SIZE-1);
-        if(bytes > 0)
+        std::string buffer;
+        char temp[BUFFER_SIZE];
+        while(true)
         {
-            buffer[bytes] = '\0';
-            std::cout<<buffer<<'\n';
-            write(clientfd,buffer,bytes);
-        }
-        else if(bytes == 0)
-        {
-            std::cout<<"客户端已关闭连接！\n";
-        }
-        else
-        {
-            std::cerr<<"读取数据失败！\n";  
+            ssize_t bytes = read(clientfd,temp,BUFFER_SIZE - 1);
+            if(bytes < 0)
+            {
+                std::cerr<<"读取客户端数据失败！"<<'\n';
+                break;
+            }
+            else if(bytes == 0)
+            {
+                std::cout<<"客户端断开连接！\n";
+                break;
+            }
+            buffer.append(temp, bytes);
+            size_t pos;
+            while((pos = buffer.find('\n')) != std::string::npos)
+            {
+                std::string line = buffer.substr(0,pos);
+                buffer.erase(0,pos+1);
+                std::cout<<"收到客户端消息: "<<line<<'\n';
+
+                write(clientfd, "OK\n", 3);
+            }
         }
         close(clientfd);
     }
