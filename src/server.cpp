@@ -55,11 +55,28 @@ int main()
         int clientfd = accept(serverfd,(struct sockaddr*)&client_addr,&client_len);
         if(clientfd == -1 )
         {
-            std::cout<<"接受客户端连接失败！"<<'\n';
+            std::cerr<<"接受客户端连接失败！"<<'\n';
             continue;
         }
 
         std::cout<<"客户端连接成功！\n";
+        char buffer[BUFFER_SIZE];
+        ssize_t bytes = read(clientfd,buffer,BUFFER_SIZE-1);
+        if(bytes > 0)
+        {
+            buffer[bytes] = '\0';
+            std::cout<<buffer<<'\n';
+            write(clientfd,buffer,bytes);
+        }
+        else if(bytes == 0)
+        {
+            std::cout<<"客户端已关闭连接！\n";
+        }
+        else
+        {
+            std::cerr<<"读取数据失败！\n";  
+        }
+        close(clientfd);
     }
 
 }
