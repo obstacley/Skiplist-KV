@@ -8,11 +8,20 @@
 #include <sstream>
 #include "../include/skiplist.h"
 #include <functional> //提供std::ref
+#include <atomic>
+#include <csignal>
+#include <errno.h>
 
 constexpr int PORT = 9090;
 constexpr int BUFFER_SIZE = 1024;
 
 skiplist<std::string, std::string> kv;
+std::atomic<bool> running{true};
+
+void handle_signal(int sign)
+{
+    running.store(false, std::memory_order_relaxed);
+}
 
 void handle_client(int clientfd ,skiplist<std::string,std::string>& kv)
 {
@@ -116,7 +125,10 @@ int main()
         return -1;
     }
 
-    while(true)
+    struct sigaction sa{};
+    sa.sa_handler = handle_signal;
+    sigaction(SIGINT, &sa, nullptr);
+    while(running.load(std::memory_order_relaxed))
     {
         struct sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
@@ -126,6 +138,11 @@ int main()
         int clientfd = accept(serverfd,(struct sockaddr*)&client_addr,&client_len);
         if(clientfd == -1 )
         {
+            if(errno == EINTR)
+            {
+                if(!running.load()) break;
+                continue;
+            }
             std::cerr<<"接受客户端连接失败！"<<'\n';
             continue;
         }
@@ -135,4 +152,9 @@ int main()
         t.detach();
     }
 
+    std::cout<<"正在关闭服务器...\n";
+    kv.dump_file();
+    close(serverfd);
+    std::cout<<"服务器已关闭！数据已保存\n";
+    return 0;
 }
