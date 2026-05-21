@@ -33,12 +33,6 @@
 - test/ 目录为空，无单元测试
 - 无 namespace
 
-## 未来项目规划
-
-详细内容见 `/home/pickchu/claudepj/ROADMAP.md`。核心思路：
-
-1. **HNSW 向量索引引擎**——跳表思想的高维推广，触及 SIMD 优化、内存布局、图算法
-2. **Agent Memory Backend**——将自研 HNSW 包装为 Memory 服务
 
 **秋招定位**：C++ AI 基础设施 / 向量数据库内核 / 搜索推荐引擎。卡位逻辑：AI 工程师不会 C++，C++ 工程师不懂 AI，中间地带竞争小、壁垒高。
 
