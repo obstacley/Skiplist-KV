@@ -17,8 +17,10 @@
 #include <utility>         // 用于std::forward
 #include <optional>       
 #include <random>
+#include <atomic>
 
-constexpr int max_level = 20 ;
+namespace skv{
+    constexpr int max_level = 20 ;
 
 template<typename K, typename V>
 class Node{
@@ -63,7 +65,7 @@ class skiplist{
     //std::shared_ptr<Node<K,V>> header;
     Node<K,V>* header;
 
-    int element_count;
+    std::atomic<int> element_count;
     mutable std::shared_mutex _mtx;
     std::string filename = "list_data.rbd";
     
@@ -72,7 +74,7 @@ class skiplist{
     ~skiplist();
 
     int get_size() const{
-        return element_count;
+        return element_count.load();
     }
     int get_random_level();
     std::optional<V> search(const K& key) const;
@@ -192,7 +194,7 @@ bool skiplist<K,V>::delete_node(const K& key)
         {
             --curr_level;
         }
-        --element_count;
+        element_count--;
         return true;
     }
     return false;
@@ -240,7 +242,7 @@ bool skiplist<K,V>::insert(RK&& key,RV&& val)
             new_node->forward[i] = update[i]->forward[i];
             update[i]->forward[i] = new_node;
         }
-        ++element_count;
+        element_count++;
         return true;
     }
 }
@@ -272,24 +274,6 @@ void skiplist<K,V>::dump_file() const
     close(fd);
     std::cout<<"文件写入成功!"<<"共保存:"<<element_count<<"个元素"<<std::endl;
     return ;
-    // std::ofstream out_file(filename);
-    // if(!out_file.is_open())
-    // {
-    //     std::cout<<"[Error] 无法打开文件 :"<<filename<<std::endl;
-    //     return;
-    // }
-
-    // auto current = header->forward[0];
-
-    // while(current != nullptr)
-    // {
-    //     out_file<<current->key<<":"<<current->val<<'\n';
-    //     current = current -> forward[0];
-    // }
-
-    // out_file.close();
-    // std::cout<<"文件写入成功!"<<std::endl;
-    // return ;
 }
 
 
@@ -344,4 +328,6 @@ void skiplist<K,V>::load_file()
     std::cout<<"文件加载成功!"<<filename<<std::endl;
     return ;
 }
+}
+
 #endif

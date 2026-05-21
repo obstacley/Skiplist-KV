@@ -4,6 +4,7 @@
 #include <random>
 #include <thread>
 #include "skiplist.h" 
+using namespace skv;
 
 int main() {
     skiplist<int,std::string> list_test;

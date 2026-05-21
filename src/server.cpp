@@ -11,6 +11,7 @@
 #include <atomic>
 #include <csignal>
 #include <errno.h>
+using namespace skv;
 
 constexpr int PORT = 9090;
 constexpr int BUFFER_SIZE = 1024;
@@ -52,37 +53,37 @@ void handle_client(int clientfd ,skiplist<std::string,std::string>& kv)
                 std::istringstream iss(line);
                 std::string cmd,key,val;
                 iss>>cmd>>key>>val;
-                std::string reponse;
+                std::string response;
                 if(cmd == "SET")
                 {
                     bool result =kv.insert(key,val);
                     if(result)
-                    reponse = "OK(INSERT)\n";
-                    else reponse = "OK(UPDATE)\n";
+                    response = "OK(INSERT)\n";
+                    else response = "OK(UPDATE)\n";
                 }
                 else if(cmd == "GET")
                 {
                     auto result = kv.search(key);
                     if(result.has_value())
-                        reponse = result.value() + "\n";
-                    else reponse = "NOT_FOUND\n";
+                        response = result.value() + "\n";
+                    else response = "NOT_FOUND\n";
                 }
                 else if(cmd == "DEL") 
                 {
                     bool result = kv.delete_node(key);
                     if(result)
-                        reponse = "OK(DELETE)\n";
-                    else reponse = "NOT_FOUND\n";
+                        response = "OK(DELETE)\n";
+                    else response = "NOT_FOUND\n";
                 }
                 else if(cmd == "COUNT")
                 {
-                    reponse = std::to_string(kv.get_size()) + "\n";
+                    response = std::to_string(kv.get_size()) + "\n";
                 }
                 else {
                     write(clientfd, "ERROR\n", 6);
                     continue;
                 }
-                write(clientfd, reponse.c_str(), reponse.size());
+                write(clientfd, response.c_str(), response.size());
             }
         }
         close(clientfd);
@@ -91,7 +92,7 @@ void handle_client(int clientfd ,skiplist<std::string,std::string>& kv)
 int main()
 {
     //获取socket
-    int serverfd = socket(AF_INET,SOCK_STREAM,0);
+    int serverfd = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
     if(serverfd == -1)
     {
         std::cerr<<"创建socket失败！"<<'\n';
