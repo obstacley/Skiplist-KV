@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include_directories(include)
 
 # 5. 指定生成目标
-add_executable(skiplist_node src/main.cpp)
+add_executable(kv_main src/main.cpp)
 add_executable(kv_server src/server.cpp)
 
 # # 6.编译追踪测试
