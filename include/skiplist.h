@@ -2,7 +2,7 @@
 #define SKIPLIST_H
 
 #include <iostream>
-#include <cstdlib> 
+#include <cstdlib>
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -10,43 +10,73 @@
 #include <shared_mutex>
 #include <mutex>
 #include <fstream>
-#include <sstream>      // 用于字符串流转换
-#include <type_traits>  // 用于类型判断
-#include <fcntl.h>        // 用于文件锁
-#include <unistd.h>       // 用于文件锁
-#include <utility>         // 用于std::forward
-#include <optional>       
+#include <sstream>
+#include <type_traits>
+#include <fcntl.h>
+#include <unistd.h>
+#include <utility>
+#include <optional>
 #include <random>
 #include <atomic>
 
 namespace skv{
     constexpr int max_level = 20 ;
 
+// ========== Arena 内存分配器 ==========
+// 预分配大块内存（4MB），bump-pointer 分配，析构时整块释放
+// 消除逐节点 new/delete 的 malloc 开销和内存碎片
+class Arena {
+    static constexpr size_t BLOCK_SIZE = 4 * 1024 * 1024;
+    std::vector<char*> blocks_;
+    char* cur_ = nullptr;
+    size_t remain_ = 0;
+
+public:
+    ~Arena() {
+        for (auto* b : blocks_) delete[] b;
+    }
+    Arena() = default;
+    Arena(const Arena&) = delete;
+    Arena& operator=(const Arena&) = delete;
+
+    void* alloc(size_t size) {
+        size = (size + 7) & ~size_t(7);   // 8 字节对齐
+        if (size > remain_) {
+            size_t block_sz = size > BLOCK_SIZE ? size : BLOCK_SIZE;
+            char* block = new char[block_sz];
+            blocks_.push_back(block);
+            cur_ = block;
+            remain_ = block_sz;
+        }
+        void* p = cur_;
+        cur_ += size;
+        remain_ -= size;
+        return p;
+    }
+};
+
+// ========== 跳表节点（柔性数组成员，GCC 扩展） ==========
+// forward 数组紧跟在 Node 尾部，与 Node 一次分配、连续内存
 template<typename K, typename V>
 class Node{
-    public:
+public:
     K key;
     V val;
     int node_level;
+    Node<K,V>* forward[];   // GCC FAM，柔性数组成员
 
-   //std::vector<std::shared_ptr<Node<K,V>>> forward;
-   Node<K,V>** forward;
-
-    Node(const K& k,const V& v,int level)
-    :key(k),val(v),node_level(level)
-    {
-        forward = new Node<K,V>*[level+1]();
+    static size_t alloc_size(int level) {
+        return sizeof(Node<K,V>) + sizeof(Node<K,V>*) * (level + 1);
     }
 
-    Node(K&& k,V&& v,int level)
-    :key(std::move(k)),val(std::move(v)),node_level(level)
-    {
-        forward = new Node<K,V>*[level+1]();
+    Node(const K& k, const V& v, int level)
+        : key(k), val(v), node_level(level) {
+        for (int i = 0; i <= level; ++i) forward[i] = nullptr;
     }
 
-    ~Node()
-    {
-        delete[] forward;
+    Node(K&& k, V&& v, int level)
+        : key(std::move(k)), val(std::move(v)), node_level(level) {
+        for (int i = 0; i <= level; ++i) forward[i] = nullptr;
     }
 };
 
@@ -59,17 +89,22 @@ using WriteLock = std::unique_lock<std::shared_mutex>;
 
 template<typename K,typename V>
 class skiplist{
-    private:
+private:
     int curr_level;
-
-    //std::shared_ptr<Node<K,V>> header;
+    Arena arena_;                       // 必须在 header 之前声明（构造顺序）
     Node<K,V>* header;
-
     std::atomic<int> element_count;
     mutable std::shared_mutex _mtx;
     std::string filename = "list_data.rbd";
-    
-    public:
+
+    // 通过 Arena 分配节点（placement new）
+    template<typename... Args>
+    Node<K,V>* make_node(int level, Args&&... args) {
+        void* mem = arena_.alloc(Node<K,V>::alloc_size(level));
+        return new (mem) Node<K,V>(std::forward<Args>(args)..., level);
+    }
+
+public:
     skiplist();
     explicit skiplist(const std::string& fn);
     ~skiplist();
@@ -99,30 +134,31 @@ skiplist<K,V>::skiplist(const std::string& fn)
 {
     K k{};
     V v{};
-    header = new Node<K,V>(k,v,max_level);
+    header = make_node(max_level, k, v);
     try{
         load_file();
     }
     catch(const std::exception& e)
     {
-        delete header;
+        header->~Node();
         header = nullptr;
         std::cerr<<"文件加载失败"<<filename<<": "<<e.what()<<'\n';
         throw;
     }
 }
 
-//析构函数
+//析构函数——逐节点析构，Arena 析构时统一释放内存
 template<typename K,typename V>
 skiplist<K,V>::~skiplist()
 {
     NodePtr<K,V> current = header;
     while(current != nullptr)
     {
-        header = header->forward[0];
-        delete current;
-        current = header;
+        NodePtr<K,V> next = current->forward[0];
+        current->~Node();
+        current = next;
     }
+    // arena_ 析构时自动 delete[] 所有 block
 }
 
 //随机生成一个层数
@@ -149,10 +185,10 @@ std::optional<V> skiplist<K,V>::search(const K& key) const
     {
        while(current->forward[i] !=nullptr && current->forward[i]->key < key)
        {
-            current=current->forward[i];
+            current = current->forward[i];
        }
     }
-    current=current->forward[0];
+    current = current->forward[0];
     if(current != nullptr && current->key ==key)
     {
         return current->val;
@@ -190,9 +226,9 @@ bool skiplist<K,V>::delete_node(const K& key)
     auto current = header;
     for( int i = curr_level; i >= 0 ; --i)
     {
-        while(current -> forward[i] != nullptr && current-> forward[i] -> key < key)
+        while(current->forward[i] != nullptr && current->forward[i]->key < key)
         {
-            current = current ->forward[i];
+            current = current->forward[i];
         }
         update[i]=current;
     }
@@ -203,9 +239,9 @@ bool skiplist<K,V>::delete_node(const K& key)
         {
             if(update[i]->forward[i] != current)
             break;
-            update[i]->forward[i] = current -> forward[i];
+            update[i]->forward[i] = current->forward[i];
         }
-        delete current;
+        current->~Node();                      // 只析构，不 free（Arena 管理）
         while(curr_level > 0 && header->forward[curr_level] == nullptr)
         {
             --curr_level;
@@ -228,9 +264,9 @@ bool skiplist<K,V>::insert(RK&& key,RV&& val)
     memset(update,0,sizeof(NodePtr<K,V>)*(max_level+1));
     for( int i = curr_level; i >= 0 ; --i)
     {
-        while(current -> forward[i] != nullptr && current-> forward[i] -> key < key)
+        while(current->forward[i] != nullptr && current->forward[i]->key < key)
         {
-            current = current ->forward[i];
+            current = current->forward[i];
         }
         update[i]=current;
     }
@@ -238,8 +274,8 @@ bool skiplist<K,V>::insert(RK&& key,RV&& val)
 
     if(current != nullptr && current->key == key)
     {
-        current->val = std::forward<RV>(val);// ★ 左值拷，右值移
-        return false; // 已存在，为便于区分，更新值后返回false
+        current->val = std::forward<RV>(val);
+        return false;
     }
     else
     {
@@ -252,7 +288,9 @@ bool skiplist<K,V>::insert(RK&& key,RV&& val)
             }
             curr_level = new_level;
         }
-        auto new_node = new Node<K,V>(std::forward<RK>(key),std::forward<RV>(val),new_level);
+        auto new_node = make_node(new_level,
+                                  std::forward<RK>(key),
+                                  std::forward<RV>(val));
         for(int i = 0 ; i <= new_level ; ++i)
         {
             new_node->forward[i] = update[i]->forward[i];
@@ -284,7 +322,7 @@ void skiplist<K,V>::dump_file() const
         ss << current->key<<":"<<current->val<<'\n';
         per_data = ss.str();
         write(fd,per_data.c_str(),per_data.size());
-        current = current -> forward[0];
+        current = current->forward[0];
     }
 
     close(fd);
@@ -331,7 +369,7 @@ void skiplist<K,V>::load_file()
         if constexpr (std::is_same_v<V,std::string>)
         {
             val = val_str;
-        
+
         }
         else{
             std::istringstream val_stream(val_str);
