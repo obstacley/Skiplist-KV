@@ -71,6 +71,7 @@ class skiplist{
     
     public:
     skiplist();
+    explicit skiplist(const std::string& fn);
     ~skiplist();
 
     int get_size() const{
@@ -89,11 +90,26 @@ class skiplist{
 //构造函数
 template<typename K,typename V>
 skiplist<K,V>::skiplist()
-:curr_level(0),element_count(0)
+:skiplist("list_data.rbd")
+{}
+
+template<typename K,typename V>
+skiplist<K,V>::skiplist(const std::string& fn)
+:curr_level(0),element_count(0),filename(fn)
 {
-    K k{};V v{};
+    K k{};
+    V v{};
     header = new Node<K,V>(k,v,max_level);
-    load_file();
+    try{
+        load_file();
+    }
+    catch(const std::exception& e)
+    {
+        delete header;
+        header = nullptr;
+        std::cerr<<"文件加载失败"<<filename<<": "<<e.what()<<'\n';
+        throw;
+    }
 }
 
 //析构函数
@@ -253,10 +269,10 @@ void skiplist<K,V>::dump_file() const
 {
     ReadLock lock(_mtx);
 
-    int fd = open("list_data.rbd", O_CREAT | O_TRUNC | O_WRONLY, 0644);
+    int fd = open(filename.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0644);
     if(fd == -1)
     {
-        std::cout<<"[Error] 无法打开文件 :"<<"list_data.rbd"<<std::endl;
+        std::cout<<"[Error] 无法打开文件 :"<<filename<<std::endl;
         return ;
     }
 
