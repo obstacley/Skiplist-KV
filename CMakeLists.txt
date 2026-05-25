@@ -13,6 +13,8 @@ include_directories(include)
 # 5. 指定生成目标
 add_executable(kv_main src/main.cpp)
 add_executable(kv_server src/server.cpp)
+add_executable(sharded_test test/sharded_test.cpp)
+add_executable(bench benchmark/bench.cpp)
 
 # # 6.编译追踪测试
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
